@@ -1,0 +1,32 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Media & Output (user-provided, not in Git)
+Vorlagen/*.mp4
+Vorlagen/*.mp3
+Vorlagen/*.wav
+Spender/
+output/
+
+# OS
+Thumbs.db
+.DS_Store
