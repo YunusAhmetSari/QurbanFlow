@@ -57,17 +57,17 @@ notepad .env
 
 ### 4. Assets bereitstellen
 
-Lege die festen Medien in den `assets/`-Ordner:
+Die Assets liegen bereits im `Vorlagen/`-Ordner:
 
 ```
-assets/
-├── africa_clip.mp4    # Kurzes Afrika-Video (lächelnde Kinder)
-├── thanks_clip.mp4    # Kurzes Dankeschön-Video
-├── song_a.mp3         # Hintergrundmusik für Clips 1-3
-└── song_b.mp3         # Hintergrundmusik für Clip 6
+Vorlagen/
+├── Afrika.mp4         # Kurzes Afrika-Video
+├── Dankeschön.mp4     # Kurzes Dankeschön-Video
+└── SamiYusuf.mp4      # Hintergrundmusik (Video als Audio genutzt)
 ```
 
-### 5. Bot starten
+Eingehende Medien werden in `Spender/` gespeichert.
+Fertige Videos landen in `Output/`.
 
 ```bash
 python -m bot.telegram_bot
