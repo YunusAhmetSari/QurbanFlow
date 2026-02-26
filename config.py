@@ -37,6 +37,10 @@ ALLOWED_USER_IDS = [
     if uid.strip().isdigit()
 ]
 
+# User-ID, die benachrichtigt wird, wenn ein Video fertig ist (z.B. für manuelles Weiterleiten)
+_notify_id = os.getenv("NOTIFY_USER_ID", "").strip()
+NOTIFY_USER_ID = int(_notify_id) if _notify_id.isdigit() else None
+
 # ── OpenAI ──────────────────────────────────────────────────────────────────
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 

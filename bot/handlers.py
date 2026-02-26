@@ -27,7 +27,7 @@ from telegram.ext import (
 from core.donor_manager import create_donor_folder
 from core.video_assembler import assemble_video
 
-from config import ALLOWED_USER_IDS, DONORS_DIR
+from config import ALLOWED_USER_IDS, DONORS_DIR, NOTIFY_USER_ID
 
 logger = logging.getLogger(__name__)
 
@@ -309,128 +309,38 @@ async def confirm_assembly(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             output_path=output_file,
         )
 
-        # Fertiges Video an User senden
+        # Benachrichtigung: Video erstellt
         file_size = result_path.stat().st_size
         file_size_mb = file_size / 1024 / 1024
         logger.info(f"Video erstellt: {result_path} ({file_size_mb:.1f} MB)")
 
-        # Telegram Bot-API hat ein hartes Limit von 50 MB für alle Uploads.
-        # Falls das Video zu groß ist, wird es mit niedrigerer Bitrate neu kodiert.
-        TELEGRAM_LIMIT = 49 * 1024 * 1024  # 49 MB (etwas Puffer)
-        send_path = result_path
-
-        if file_size > TELEGRAM_LIMIT:
-            logger.info(f"Video zu groß ({file_size_mb:.1f} MB), wird komprimiert...")
-            await update.message.reply_text(
-                f"⚠️ Video ist {file_size_mb:.1f} MB groß (Telegram-Limit: 50 MB).\n"
-                "🔄 *Wird komprimiert...*",
-                parse_mode="Markdown",
-            )
-
-            compressed_path = result_path.parent / f"{result_path.stem}_compressed.mp4"
-            try:
-                import subprocess
-                # Zielbitrate berechnen: (49 MB * 8 bit) / Dauer - Audio-Bitrate
-                from core.video_assembler import get_video_duration
-                duration = get_video_duration(result_path)
-                # Zielgröße 48 MB, abzüglich ~128kbps Audio
-                target_video_bitrate = int((48 * 8 * 1024) / duration - 128)  # in kbps
-                target_video_bitrate = max(target_video_bitrate, 500)  # Mindestens 500 kbps
-
-                logger.info(f"Komprimiere mit {target_video_bitrate}k Bitrate (Dauer: {duration:.1f}s)")
-
-                cmd = [
-                    "ffmpeg", "-y",
-                    "-i", str(result_path),
-                    "-c:v", "libx264",
-                    "-b:v", f"{target_video_bitrate}k",
-                    "-c:a", "aac",
-                    "-b:a", "128k",
-                    "-preset", "fast",
-                    str(compressed_path),
-                ]
-                subprocess.run(cmd, check=True, capture_output=True)
-
-                compressed_size = compressed_path.stat().st_size
-                compressed_size_mb = compressed_size / 1024 / 1024
-                logger.info(f"Komprimiert: {compressed_size_mb:.1f} MB")
-
-                if compressed_size <= TELEGRAM_LIMIT:
-                    send_path = compressed_path
-                else:
-                    logger.warning(f"Komprimiertes Video immer noch zu groß: {compressed_size_mb:.1f} MB")
-                    await update.message.reply_text(
-                        f"⚠️ Video konnte nicht unter 50 MB komprimiert werden ({compressed_size_mb:.1f} MB).\n"
-                        f"📁 Das Video wurde lokal gespeichert unter:\n`{result_path}`",
-                        parse_mode="Markdown",
-                    )
-                    return ConversationHandler.END
-
-            except FileNotFoundError:
-                logger.error("FFmpeg nicht gefunden – Komprimierung nicht möglich")
-                await update.message.reply_text(
-                    f"⚠️ Video ist zu groß ({file_size_mb:.1f} MB) und FFmpeg ist nicht installiert.\n"
-                    f"📁 Das Video wurde lokal gespeichert unter:\n`{result_path}`",
-                    parse_mode="Markdown",
-                )
-                return ConversationHandler.END
-            except subprocess.CalledProcessError as e:
-                logger.error(f"FFmpeg Komprimierung fehlgeschlagen: {e}")
-                await update.message.reply_text(
-                    f"⚠️ Video-Komprimierung fehlgeschlagen.\n"
-                    f"📁 Das Video wurde lokal gespeichert unter:\n`{result_path}`",
-                    parse_mode="Markdown",
-                )
-                return ConversationHandler.END
-
-        # Video senden – mit korrektem File-Handle-Management
-        send_size = send_path.stat().st_size
-        caption = (
-            f"✅ *Kurban-Video fertig!*\n"
-            f"👤 Spender: `{context.user_data['donor_name']}`\n"
-            f"📁 `{normalized_name}_{counter}`"
+        # Dem Anfragenden bestätigen, dass das Video erstellt wurde
+        await update.message.reply_text(
+            f"✅ *Kurban-Video wurde erfolgreich erstellt!*\n\n"
+            f"👤 Spender: `{context.user_data['donor_name']}`\n\n"
+            f"Das Video wird in Kürze weitergeleitet. ✨",
+            parse_mode="Markdown",
         )
 
-        try:
-            with open(str(send_path), "rb") as video_file:
-                await update.message.reply_video(
-                    video=video_file,
-                    caption=caption,
-                    parse_mode="Markdown",
-                    read_timeout=300,
-                    write_timeout=300,
-                    connect_timeout=60,
-                )
-            logger.info(f"Video erfolgreich an Telegram gesendet ({send_size / 1024 / 1024:.1f} MB)")
-        except Exception as send_err:
-            logger.warning(f"reply_video fehlgeschlagen: {send_err}, versuche als Dokument...")
-            # Fallback: als Dokument senden
+        # Benachrichtigung an den Weiterleitenden (NOTIFY_USER_ID) senden
+        if NOTIFY_USER_ID:
             try:
-                with open(str(send_path), "rb") as video_file:
-                    await update.message.reply_document(
-                        document=video_file,
-                        caption=caption + "\n\n⚠️ Als Dokument gesendet (Video-Vorschau nicht möglich).",
-                        parse_mode="Markdown",
-                        read_timeout=300,
-                        write_timeout=300,
-                        connect_timeout=60,
-                    )
-                logger.info(f"Video als Dokument gesendet ({send_size / 1024 / 1024:.1f} MB)")
-            except Exception as doc_err:
-                logger.error(f"Auch Dokument-Versand fehlgeschlagen: {doc_err}", exc_info=True)
-                await update.message.reply_text(
-                    f"❌ *Video konnte nicht gesendet werden.*\n\n"
-                    f"Fehler: `{str(doc_err)}`\n\n"
-                    f"📁 Das Video wurde lokal gespeichert unter:\n`{result_path}`",
+                await context.bot.send_message(
+                    chat_id=NOTIFY_USER_ID,
+                    text=(
+                        f"🔔 *Neues Kurban-Video fertig!*\n\n"
+                        f"👤 Spender: `{context.user_data['donor_name']}`\n"
+                        f"📁 Ordner: `{normalized_name}_{counter}`\n"
+                        f"🎬 Datei: `{result_path.name}`\n"
+                        f"📦 Größe: {file_size_mb:.1f} MB\n\n"
+                        f"📂 Gespeichert unter:\n`{result_path}`\n\n"
+                        f"➡️ *Bitte leite das Video manuell weiter!*"
+                    ),
                     parse_mode="Markdown",
                 )
-
-        # Komprimierte Temp-Datei aufräumen
-        if send_path != result_path and send_path.exists():
-            try:
-                send_path.unlink()
-            except Exception:
-                pass
+                logger.info(f"Benachrichtigung an User {NOTIFY_USER_ID} gesendet")
+            except Exception as notify_err:
+                logger.error(f"Benachrichtigung fehlgeschlagen: {notify_err}")
 
     except Exception as e:
         logger.error(f"Video-Assembly fehlgeschlagen: {e}", exc_info=True)
