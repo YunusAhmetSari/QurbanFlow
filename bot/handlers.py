@@ -142,7 +142,8 @@ async def confirm_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     await update.message.reply_text(
         f"✅ *Spender:* `{donor_name}`\n"
         f"📁 *Ordner:* `{normalized_name}_{counter}`\n\n"
-        f"📸 *Schritt 2:* Sende jetzt das Bild vom *Opfertier mit Flyer*.",
+        f"📸 *Schritt 2:* Sende jetzt das Bild vom *Opfertier mit Flyer*.\n"
+        f"_Oder sende /skip um diesen Schritt zu überspringen._",
         parse_mode="Markdown",
         reply_markup=ReplyKeyboardRemove(),
     )
@@ -170,6 +171,18 @@ async def receive_animal_photo(update: Update, context: ContextTypes.DEFAULT_TYP
 
     await update.message.reply_text(
         "✅ Opfertier-Bild erhalten!\n\n"
+        "🎥 *Schritt 3:* Sende das *Schlachtungsvideo* (Gebet & Schlachtung).",
+        parse_mode="Markdown",
+    )
+    return AWAITING_SLAUGHTER_VIDEO
+
+
+async def skip_animal_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handler: Opfertier-Bild überspringen."""
+    context.user_data["media_files"]["animal"] = None
+
+    await update.message.reply_text(
+        "⏩ Opfertier-Bild übersprungen.\n\n"
         "🎥 *Schritt 3:* Sende das *Schlachtungsvideo* (Gebet & Schlachtung).",
         parse_mode="Markdown",
     )
@@ -245,8 +258,10 @@ async def skip_distribution_video(update: Update, context: ContextTypes.DEFAULT_
 async def _show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Zeigt die Zusammenfassung und fragt nach Bestätigung."""
     donor_name = context.user_data["donor_name"]
+    has_animal = context.user_data["media_files"].get("animal") is not None
     has_distribution = context.user_data["media_files"].get("distribution") is not None
     
+    animal_status = "✅" if has_animal else "❌ (übersprungen)"
     dist_status = "✅" if has_distribution else "❌ (übersprungen)"
 
     keyboard = ReplyKeyboardMarkup(
@@ -260,7 +275,7 @@ async def _show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         f"📋 *Zusammenfassung:*\n"
         f"👤 Spender: `{donor_name}`\n"
         f"📸 Flyer: ✅\n"
-        f"📸 Opfertier: ✅\n"
+        f"📸 Opfertier: {animal_status}\n"
         f"🎥 Schlachtung: ✅\n"
         f"🎥 Verteilung: {dist_status}\n\n"
         f"Soll ich das Video jetzt erstellen?",
@@ -303,7 +318,7 @@ async def confirm_assembly(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # Video-Assembly starten
         result_path = assemble_video(
             flyer_image=Path(media["flyer"]),
-            animal_image=Path(media["animal"]),
+            animal_image=Path(media["animal"]) if media.get("animal") else None,
             slaughter_video=Path(media["slaughter"]),
             distribution_video=Path(media["distribution"]) if media.get("distribution") else None,
             output_path=output_file,
@@ -374,9 +389,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "*Ablauf:*\n"
         "1️⃣ Flyer-Bild senden\n"
         "2️⃣ Spendername bestätigen\n"
-        "3️⃣ Opfertier-Bild senden\n"
+        "3️⃣ Opfertier-Bild senden (oder /skip)\n"
         "4️⃣ Schlachtungsvideo senden\n"
-        "5️⃣ Verteilungsvideo senden\n"
+        "5️⃣ Verteilungsvideo senden (oder /skip)\n"
         "6️⃣ Video wird automatisch erstellt! 🎬",
         parse_mode="Markdown",
     )
@@ -395,6 +410,7 @@ def get_conversation_handler() -> ConversationHandler:
             ],
             AWAITING_ANIMAL_PHOTO: [
                 MessageHandler(filters.PHOTO | filters.Document.ALL, receive_animal_photo),
+                CommandHandler("skip", skip_animal_photo),
             ],
             AWAITING_SLAUGHTER_VIDEO: [
                 MessageHandler(

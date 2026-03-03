@@ -6,15 +6,15 @@ Baut das fertige Kurban-Video nach festem Schema zusammen:
 Videospur: 
    1. Flyer (Bild → Still-Video)     | Audio: Song A (Start)
    2. Afrika-Clip (fest)              | Audio: Song A (Mitte)
-   3. Opfertier+Flyer (Bild → Still)  | Audio: Song A (Ende)
+   3. [Optional] Opfertier+Flyer (Bild → Still)  | Audio: Song A (Ende)
    4. Schlachtungsvideo               | Audio: Original
    5. [Optional] Verteilungsvideo     | Audio: Original
    6. Danke-Clip (fest)               | Audio: Song B
 
 Alle Clips werden auf eine einheitliche Zielauflösung normalisiert
 (Scale + Pad), damit keine schwarzen Ränder entstehen.
-Song A wird auf die ersten 15 Sekunden gekürzt.
-Clip 5 (Verteilung) ist optional.
+Song A wird auf 10s (ohne Opfertier) oder 15s (mit Opfertier) gekürzt.
+Clip 3 (Opfertier) und Clip 5 (Verteilung) sind optional.
 """
 
 import logging
@@ -111,7 +111,7 @@ def _make_still_clip(image_path: Path, duration: float) -> ImageClip:
 
 def assemble_video(
     flyer_image: Path,
-    animal_image: Path,
+    animal_image: Optional[Path],
     slaughter_video: Path,
     distribution_video: Optional[Path],
     output_path: Path,
@@ -124,7 +124,7 @@ def assemble_video(
 
     Args:
         flyer_image: Pfad zum Flyer-Bild
-        animal_image: Pfad zum Opfertier+Flyer-Bild
+        animal_image: Pfad zum Opfertier+Flyer-Bild (Optional, None = skip)
         slaughter_video: Pfad zum Schlachtungsvideo
         distribution_video: Pfad zum Verteilungsvideo (Optional, None = skip)
         output_path: Pfad für das fertige Video
@@ -138,9 +138,12 @@ def assemble_video(
     _validate_assets()
 
     # Eingabedateien prüfen
-    for media in [flyer_image, animal_image, slaughter_video]:
+    for media in [flyer_image, slaughter_video]:
         if not media.exists():
             raise FileNotFoundError(f"Mediendatei nicht gefunden: {media}")
+
+    if animal_image and not animal_image.exists():
+        raise FileNotFoundError(f"Opfertier-Bild nicht gefunden: {animal_image}")
 
     if distribution_video and not distribution_video.exists():
         raise FileNotFoundError(f"Verteilungsvideo nicht gefunden: {distribution_video}")
@@ -163,10 +166,14 @@ def assemble_video(
         clips_to_close.append(clip2_raw)
         clips_to_close.append(clip2)
 
-        # ── Clip 3: Opfertier+Flyer (Still-Bild) ───────────────────────────
-        logger.info(f"Clip 3: Opfertier-Bild ({ANIMAL_STILL_DURATION}s)")
-        clip3 = _make_still_clip(animal_image, ANIMAL_STILL_DURATION)
-        clips_to_close.append(clip3)
+        # ── Clip 3: Opfertier+Flyer (Still-Bild, Optional) ──────────────────
+        if animal_image:
+            logger.info(f"Clip 3: Opfertier-Bild ({ANIMAL_STILL_DURATION}s)")
+            clip3 = _make_still_clip(animal_image, ANIMAL_STILL_DURATION)
+            clips_to_close.append(clip3)
+        else:
+            logger.info("Clip 3: Übersprungen (Kein Opfertier-Bild)")
+            clip3 = None
 
         # ── Clip 4: Schlachtungsvideo ────────────────────────────────────────
         logger.info("Clip 4: Schlachtungsvideo")
@@ -195,30 +202,37 @@ def assemble_video(
 
         # ── Audio-Setup ─────────────────────────────────────────────────────
 
-        # Song A: läuft über Clips 1-3
-        duration_clips_1_3 = clip1.duration + clip2.duration + clip3.duration
-        logger.info(f"Song A Dauer: {duration_clips_1_3:.1f}s (Clips 1-3)")
+        # Song A: läuft über Clips 1-2 (ohne Opfertier) oder 1-3 (mit Opfertier)
+        song_a_clips = [clip1, clip2]
+        if clip3:
+            song_a_clips.append(clip3)
+
+        duration_song_a_clips = sum(c.duration for c in song_a_clips)
+        logger.info(f"Song A Dauer: {duration_song_a_clips:.1f}s (Clips 1-{'3' if clip3 else '2'})")
 
         song_a = AudioFileClip(str(SONG_A))
         clips_to_close.append(song_a)
 
-        # Song A auf maximal 15 Sekunden begrenzen (5s Flyer + 5s Afrika + 5s Tier)
-        MAX_SONG_A_DURATION = 15.0
+        # Song A begrenzen: 10s ohne Opfertier (5s Flyer + 5s Afrika),
+        # 15s mit Opfertier (5s Flyer + 5s Afrika + 5s Tier)
+        MAX_SONG_A_DURATION = 15.0 if clip3 else 10.0
         if song_a.duration > MAX_SONG_A_DURATION:
             song_a = song_a.subclip(0, MAX_SONG_A_DURATION)
 
-        # Song A in drei Teile aufteilen (für jeden Clip)
+        # Song A aufteilen (für jeden Clip)
         t1 = clip1.duration
         t2 = clip1.duration + clip2.duration
 
         song_a_part1 = song_a.subclip(0, t1)
-        song_a_part2 = song_a.subclip(t1, t2)
-        song_a_part3 = song_a.subclip(t2, min(duration_clips_1_3, song_a.duration))
+        song_a_part2 = song_a.subclip(t1, min(t2, song_a.duration))
 
-        # Clips 1-3 mit Song A Audio versehen
+        # Clips mit Song A Audio versehen
         clip1 = clip1.set_audio(song_a_part1)
         clip2 = clip2.set_audio(song_a_part2)
-        clip3 = clip3.set_audio(song_a_part3)
+
+        if clip3:
+            song_a_part3 = song_a.subclip(t2, min(duration_song_a_clips, song_a.duration))
+            clip3 = clip3.set_audio(song_a_part3)
 
         # Clip 4 & 5: Original-Audio behalten
 
@@ -234,7 +248,10 @@ def assemble_video(
         # ── Zusammenfügen ───────────────────────────────────────────────────
         logger.info("Videos werden zusammengefügt...")
         
-        final_clips = [clip1, clip2, clip3, clip4]
+        final_clips = [clip1, clip2]
+        if clip3:
+            final_clips.append(clip3)
+        final_clips.append(clip4)
         if clip5:
             final_clips.append(clip5)
         final_clips.append(clip6)
