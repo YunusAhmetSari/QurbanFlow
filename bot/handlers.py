@@ -309,7 +309,7 @@ async def confirm_assembly(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     try:
         media = context.user_data["media_files"]
-        output_dir = Path(context.user_data["output_path"])
+        output_dir = Path(context.user_data["donor_path"])
         normalized_name = context.user_data["normalized_name"]
         counter = context.user_data["counter"]
 
