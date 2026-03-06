@@ -12,6 +12,8 @@ Konversations-basierter Flow:
 
 import logging
 
+from telegram.error import BadRequest
+
 from pathlib import Path
 
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
@@ -198,12 +200,24 @@ async def receive_slaughter_video(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text("❌ Bitte sende ein *Video*.", parse_mode="Markdown")
         return AWAITING_SLAUGHTER_VIDEO
 
-    if video:
-        file = await video.get_file()
-        ext = ".mp4"
-    else:
-        file = await document.get_file()
-        ext = Path(document.file_name).suffix if document.file_name else ".mp4"
+    try:
+        if video:
+            file = await video.get_file()
+            ext = ".mp4"
+        else:
+            file = await document.get_file()
+            ext = Path(document.file_name).suffix if document.file_name else ".mp4"
+    except BadRequest as e:
+        if "file is too big" in str(e).lower():
+            await update.message.reply_text(
+                "❌ *Das Video ist zu groß!*\n\n"
+                "Telegram erlaubt Bots nur Dateien bis *20 MB* herunterzuladen.\n\n"
+                "💡 *Tipp:* Bitte kürze oder komprimiere das Video und sende es erneut.",
+                parse_mode="Markdown",
+            )
+        else:
+            raise
+        return AWAITING_SLAUGHTER_VIDEO
 
     donor_path = Path(context.user_data["donor_path"])
     slaughter_path = donor_path / f"slaughter{ext}"
@@ -228,12 +242,24 @@ async def receive_distribution_video(update: Update, context: ContextTypes.DEFAU
         await update.message.reply_text("❌ Bitte sende ein *Video*.", parse_mode="Markdown")
         return AWAITING_DISTRIBUTION_VIDEO
 
-    if video:
-        file = await video.get_file()
-        ext = ".mp4"
-    else:
-        file = await document.get_file()
-        ext = Path(document.file_name).suffix if document.file_name else ".mp4"
+    try:
+        if video:
+            file = await video.get_file()
+            ext = ".mp4"
+        else:
+            file = await document.get_file()
+            ext = Path(document.file_name).suffix if document.file_name else ".mp4"
+    except BadRequest as e:
+        if "file is too big" in str(e).lower():
+            await update.message.reply_text(
+                "❌ *Das Video ist zu groß!*\n\n"
+                "Telegram erlaubt Bots nur Dateien bis *20 MB* herunterzuladen.\n\n"
+                "💡 *Tipp:* Bitte kürze oder komprimiere das Video und sende es erneut.",
+                parse_mode="Markdown",
+            )
+        else:
+            raise
+        return AWAITING_DISTRIBUTION_VIDEO
 
     donor_path = Path(context.user_data["donor_path"])
     distribution_path = donor_path / f"distribution{ext}"
