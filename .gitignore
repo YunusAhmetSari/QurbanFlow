@@ -25,7 +25,6 @@ Vorlagen/*.mp4
 Vorlagen/*.mp3
 Vorlagen/*.wav
 Spender/
-output/
 
 # OS
 Thumbs.db

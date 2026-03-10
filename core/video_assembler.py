@@ -291,9 +291,3 @@ def assemble_video(
                 clip.close()
             except Exception:
                 pass
-
-
-def get_video_duration(video_path: Path) -> float:
-    """Gibt die Dauer eines Videos in Sekunden zurück."""
-    with VideoFileClip(str(video_path)) as clip:
-        return clip.duration

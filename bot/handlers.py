@@ -128,12 +128,11 @@ async def confirm_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return CONFIRM_NAME
 
     # Ordner anlegen
-    donor_path, output_path, normalized_name, counter = create_donor_folder(donor_name)
+    donor_path, normalized_name, counter = create_donor_folder(donor_name)
     context.user_data["donor_name"] = donor_name
     context.user_data["normalized_name"] = normalized_name
     context.user_data["counter"] = counter
     context.user_data["donor_path"] = str(donor_path)
-    context.user_data["output_path"] = str(output_path)
 
     # Flyer in den Spender-Ordner verschieben
     flyer_src = Path(context.user_data["media_files"]["flyer"])

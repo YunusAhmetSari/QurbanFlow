@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from typing import Tuple, List, Dict
 
-from config import DONORS_DIR, OUTPUT_DIR
+from config import DONORS_DIR
 
 
 def normalize_name(name: str) -> str:
@@ -109,40 +109,29 @@ def get_next_counter(name: str) -> int:
     return max(counters) + 1
 
 
-def create_donor_folder(raw_name: str) -> Tuple[Path, Path, str, int]:
+def create_donor_folder(raw_name: str) -> Tuple[Path, str, int]:
     """
     Erstellt einen neuen Spender-Ordner mit korrektem Zähler.
-
-    Erstellt sowohl den Eingangs-Ordner (Spender/) als auch den Ausgabe-Ordner (Output/).
 
     Args:
         raw_name: Roher Spendername (wird normalisiert)
 
     Returns:
-        Tuple von (donor_input_path, donor_output_path, normalized_name, counter)
+        Tuple von (donor_path, normalized_name, counter)
 
     Example:
-        >>> path_in, path_out, name, count = create_donor_folder("Max Mustermann")
-        >>> print(path_in)  # Spender/Max Mustermann 2 (falls 1 existiert)
+        >>> path, name, count = create_donor_folder("Max Mustermann")
+        >>> print(path)  # Spender/Max Mustermann 2 (falls 1 existiert)
     """
     normalized = normalize_name(raw_name)
     counter = get_next_counter(normalized)
     
-    # Formatierung:
-    # 1 -> "Name 1" (um konsistent zu bleiben mit "Mila Gönen 1")
-    # Oder wollen wir "Name" für 1 erlauben?
-    # Basierend auf "Mila Gönen" UND "Mila Gönen 1" ist es gemischt.
-    # Wir nutzen ab sofort immer "Name Counter" für neue Ordner, um Eindeutigkeit zu haben.
-    
     folder_name = f"{normalized} {counter}"
 
     donor_path = DONORS_DIR / folder_name
-    output_path = OUTPUT_DIR / folder_name
-
     donor_path.mkdir(parents=True, exist_ok=True)
-    output_path.mkdir(parents=True, exist_ok=True)
 
-    return donor_path, output_path, normalized, counter
+    return donor_path, normalized, counter
 
 
 def list_all_donors() -> Dict[str, List[Path]]:

@@ -15,11 +15,9 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = BASE_DIR / "Vorlagen"  # War vorher "assets"
 DONORS_DIR = BASE_DIR / "Spender"   # War vorher "donors"
-OUTPUT_DIR = BASE_DIR / "Output"    # Neu, um Originaldaten nicht zu vermischen
 
 # Verzeichnisse erstellen, falls nicht vorhanden
 DONORS_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
 ASSETS_DIR.mkdir(exist_ok=True)
 
 # ── Feste Assets ────────────────────────────────────────────────────────────
@@ -40,18 +38,9 @@ ALLOWED_USER_IDS = [
 # User-ID, die benachrichtigt wird, wenn ein Video fertig ist (z.B. für manuelles Weiterleiten)
 _notify_id = os.getenv("NOTIFY_USER_ID", "").strip()
 NOTIFY_USER_ID = int(_notify_id) if _notify_id.isdigit() else None
-
-# ── OpenAI ──────────────────────────────────────────────────────────────────
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
-
 # ── Video-Einstellungen ────────────────────────────────────────────────────
 FLYER_STILL_DURATION = int(os.getenv("FLYER_STILL_DURATION", "5"))       # Sekunden
 ANIMAL_STILL_DURATION = int(os.getenv("ANIMAL_STILL_DURATION", "5"))     # Sekunden
-MAX_SLAUGHTER_DURATION = int(os.getenv("MAX_SLAUGHTER_DURATION", "90"))  # Sekunden
 VIDEO_WIDTH = int(os.getenv("VIDEO_WIDTH", "1280"))
 VIDEO_HEIGHT = int(os.getenv("VIDEO_HEIGHT", "720"))
 VIDEO_FPS = int(os.getenv("VIDEO_FPS", "24"))
-
-# ── Audio-Einstellungen ────────────────────────────────────────────────────
-AUDIO_FADE_DURATION = 1.0   # Sekunden für Ein-/Ausblendung
-TARGET_DBFS = -20.0          # Ziel-Lautstärke für Normalisierung

@@ -5,10 +5,8 @@ Ein Telegram-Bot der automatisch Kurban-Videos zusammenschneidet, basierend auf 
 ## ✨ Features
 
 - 🤖 **Telegram-Bot** — Dein Vater schickt Medien direkt an den Bot
-- 🔍 **KI-Texterkennung** — Spendername wird automatisch vom Flyer erkannt (GPT-4o Vision)
-- 📁 **Intelligente Ordnerstruktur** — Automatischer Zähler pro Spender (z.B. Max_Mustermann_1, Max_Mustermann_2)
+- 📁 **Intelligente Ordnerstruktur** — Automatischer Zähler pro Spender (z.B. Max Mustermann 1, Max Mustermann 2)
 - 🎬 **Automatischer Videoschnitt** — Clips werden nach festem Schema zusammengebaut
-- 🔊 **Audio-Normalisierung** — Einheitliche Lautstärke über das gesamte Video
 - 📤 **Direkter Versand** — Fertiges Video wird automatisch zurück an Telegram gesendet
 
 ## 📐 Video-Schema
@@ -17,9 +15,9 @@ Ein Telegram-Bot der automatisch Kurban-Videos zusammenschneidet, basierend auf 
 |---|--------|-------|
 | 1 | Flyer (Vollbild) | 🎵 Song A |
 | 2 | Afrika-Clip (fest) | 🎵 Song A |
-| 3 | Opfertier + Flyer | 🎵 Song A |
+| 3 | Opfertier + Flyer (optional) | 🎵 Song A |
 | 4 | Gebet & Schlachtung | 🔊 Original |
-| 5 | Verteilung & Gebete | 🔊 Original |
+| 5 | Verteilung & Gebete (optional) | 🔊 Original |
 | 6 | Dankeschön-Clip (fest) | 🎵 Song B |
 
 ## 🚀 Schnellstart
@@ -29,7 +27,6 @@ Ein Telegram-Bot der automatisch Kurban-Videos zusammenschneidet, basierend auf 
 - Python 3.11+
 - FFmpeg installiert und im PATH
 - Telegram Bot Token (von [@BotFather](https://t.me/BotFather))
-- OpenAI API Key
 
 ### 2. Installation
 
@@ -66,8 +63,9 @@ Vorlagen/
 └── SamiYusuf.mp4      # Hintergrundmusik (Video als Audio genutzt)
 ```
 
-Eingehende Medien werden in `Spender/` gespeichert.
-Fertige Videos landen in `Output/`.
+Eingehende Medien und fertige Videos werden in `Spender/` gespeichert.
+
+### 5. Bot starten
 
 ```bash
 python -m bot.telegram_bot
@@ -78,10 +76,10 @@ python -m bot.telegram_bot
 Dem Bot in Telegram schreiben:
 1. `/start` senden
 2. Flyer-Bild schicken
-3. Spendername bestätigen
-4. Opfertier-Bild schicken
+3. Spendername eingeben
+4. Opfertier-Bild schicken (oder `/skip`)
 5. Schlachtungsvideo schicken
-6. Verteilungsvideo schicken
+6. Verteilungsvideo schicken (oder `/skip`)
 7. ✅ Fertiges Video wird automatisch zurückgesendet!
 
 ## ⚙️ Konfiguration
@@ -91,20 +89,13 @@ Alle Einstellungen in `.env`:
 | Variable | Standard | Beschreibung |
 |----------|----------|-------------|
 | `TELEGRAM_BOT_TOKEN` | — | Telegram Bot Token |
-| `OPENAI_API_KEY` | — | OpenAI API Key |
 | `ALLOWED_USER_IDS` | — | Kommagetrennte Telegram User-IDs |
+| `NOTIFY_USER_ID` | — | Telegram User-ID für Benachrichtigungen |
 | `FLYER_STILL_DURATION` | 5 | Sekunden für Flyer-Standbild |
 | `ANIMAL_STILL_DURATION` | 5 | Sekunden für Opfertier-Standbild |
-| `MAX_SLAUGHTER_DURATION` | 45 | Max. Sekunden Schlachtungsvideo |
-| `VIDEO_WIDTH` | 1920 | Ausgabe-Breite (px) |
-| `VIDEO_HEIGHT` | 1080 | Ausgabe-Höhe (px) |
-| `VIDEO_FPS` | 30 | Frames pro Sekunde |
-
-## 🧪 Tests
-
-```bash
-python -m pytest tests/ -v
-```
+| `VIDEO_WIDTH` | 1280 | Ausgabe-Breite (px) |
+| `VIDEO_HEIGHT` | 720 | Ausgabe-Höhe (px) |
+| `VIDEO_FPS` | 24 | Frames pro Sekunde |
 
 ## 📁 Projektstruktur
 
@@ -115,11 +106,7 @@ QurbanFlow/
 │   └── handlers.py         # Konversations-Handler
 ├── core/                   # Kernlogik
 │   ├── donor_manager.py    # Spenderverwaltung
-│   ├── ocr.py              # Flyer-Texterkennung
-│   ├── video_assembler.py  # Video-Assembly
-│   └── audio_processor.py  # Audio-Verarbeitung
-├── assets/                 # Feste Medien
-├── donors/                 # Eingehende Spender-Medien
-├── output/                 # Gerenderte Videos
-└── tests/                  # Unit-Tests
+│   └── video_assembler.py  # Video-Assembly
+├── Vorlagen/               # Feste Medien (Afrika, Danke, Song)
+└── Spender/                # Eingehende Medien + fertige Videos
 ```
