@@ -339,7 +339,7 @@ async def confirm_assembly(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             parse_mode="Markdown",
         )
 
-        # Video als natives Video senden (ermöglicht Player am Handy)
+        # Video an den Anfragenden senden (ermöglicht Player am Handy)
         try:
             with open(str(result_path), "rb") as video_file:
                 await context.bot.send_video(
@@ -350,6 +350,12 @@ async def confirm_assembly(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     supports_streaming=True,
                 )
             logger.info(f"Video an User {update.effective_user.id} gesendet")
+
+            # Finaler Hinweis für das nächste Video
+            await update.message.reply_text(
+                "✨ Fertig! Sende /start um ein neues Video zu erstellen.",
+                parse_mode="Markdown",
+            )
         except Exception as send_err:
             logger.error(f"Video-Versand an User fehlgeschlagen: {send_err}")
             # Fallback: Als Dokument versuchen
