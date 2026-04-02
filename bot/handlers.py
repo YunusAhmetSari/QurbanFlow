@@ -341,19 +341,17 @@ async def confirm_assembly(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         # Video an den Anfragenden senden (ermöglicht Player am Handy)
         try:
-            # Vorschaubild (Thumbnail) öffnen
-            with open(str(result_path), "rb") as video_file, open(str(thumb_path), "rb") as thumb_file:
-                await context.bot.send_video(
-                    chat_id=update.effective_chat.id,
-                    video=video_file,
-                    thumbnail=thumb_file,
-                    filename=result_path.name,
-                    caption=f"🎬 Kurban-Video: {context.user_data['donor_name']}",
-                    supports_streaming=True,
-                    duration=int(duration),
-                    width=width,
-                    height=height,
-                )
+            await context.bot.send_video(
+                chat_id=update.effective_chat.id,
+                video=str(result_path),
+                thumbnail=str(thumb_path),
+                filename=result_path.name,
+                caption=f"🎬 Kurban-Video: {context.user_data['donor_name']}",
+                supports_streaming=True,
+                duration=int(duration),
+                width=width,
+                height=height,
+            )
             logger.info(f"Video an User {update.effective_user.id} gesendet")
 
             # Finaler Hinweis für das nächste Video
@@ -393,18 +391,17 @@ async def confirm_assembly(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     parse_mode="Markdown",
                 )
                 # Video auch an NOTIFY_USER senden
-                with open(str(result_path), "rb") as video_file, open(str(thumb_path), "rb") as thumb_file:
-                    await context.bot.send_video(
-                        chat_id=NOTIFY_USER_ID,
-                        video=video_file,
-                        thumbnail=thumb_file,
-                        filename=result_path.name,
-                        caption=f"🎬 Kurban-Video: {context.user_data['donor_name']}",
-                        supports_streaming=True,
-                        duration=int(duration),
-                        width=width,
-                        height=height,
-                    )
+                await context.bot.send_video(
+                    chat_id=NOTIFY_USER_ID,
+                    video=str(result_path),
+                    thumbnail=str(thumb_path),
+                    filename=result_path.name,
+                    caption=f"🎬 Kurban-Video: {context.user_data['donor_name']}",
+                    supports_streaming=True,
+                    duration=int(duration),
+                    width=width,
+                    height=height,
+                )
                 logger.info(f"Video an NOTIFY_USER {NOTIFY_USER_ID} gesendet")
             except Exception as notify_err:
                 logger.error(f"Benachrichtigung/Versand an NOTIFY_USER fehlgeschlagen: {notify_err}")

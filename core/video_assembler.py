@@ -284,6 +284,7 @@ def assemble_video(
             audio_bitrate="192k",
             preset="ultrafast",
             threads=2,
+            ffmpeg_params=["-movflags", "+faststart"],
             logger=None,
         )
 
