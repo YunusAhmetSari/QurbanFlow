@@ -339,23 +339,34 @@ async def confirm_assembly(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             parse_mode="Markdown",
         )
 
-        # Video als Dokument senden (behält Original-Qualität)
+        # Video als natives Video senden (ermöglicht Player am Handy)
         try:
             with open(str(result_path), "rb") as video_file:
-                await context.bot.send_document(
+                await context.bot.send_video(
                     chat_id=update.effective_chat.id,
-                    document=video_file,
+                    video=video_file,
                     filename=result_path.name,
                     caption=f"🎬 Kurban-Video: {context.user_data['donor_name']}",
+                    supports_streaming=True,
                 )
             logger.info(f"Video an User {update.effective_user.id} gesendet")
         except Exception as send_err:
             logger.error(f"Video-Versand an User fehlgeschlagen: {send_err}")
-            await update.message.reply_text(
-                f"⚠️ Video konnte nicht gesendet werden: `{send_err}`\n"
-                f"Das Video liegt aber unter: `{result_path}`",
-                parse_mode="Markdown",
-            )
+            # Fallback: Als Dokument versuchen
+            try:
+                with open(str(result_path), "rb") as video_file:
+                    await context.bot.send_document(
+                        chat_id=update.effective_chat.id,
+                        document=video_file,
+                        filename=result_path.name,
+                        caption=f"🎬 Kurban-Video: {context.user_data['donor_name']} (Fallback Dokument)",
+                    )
+            except Exception:
+                await update.message.reply_text(
+                    f"⚠️ Video konnte nicht gesendet werden: `{send_err}`\n"
+                    f"Das Video liegt aber unter: `{result_path}`",
+                    parse_mode="Markdown",
+                )
 
         # Video auch an den Weiterleitenden (NOTIFY_USER_ID) senden
         if NOTIFY_USER_ID:
@@ -372,11 +383,12 @@ async def confirm_assembly(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 )
                 # Video auch an NOTIFY_USER senden
                 with open(str(result_path), "rb") as video_file:
-                    await context.bot.send_document(
+                    await context.bot.send_video(
                         chat_id=NOTIFY_USER_ID,
-                        document=video_file,
+                        video=video_file,
                         filename=result_path.name,
                         caption=f"🎬 Kurban-Video: {context.user_data['donor_name']}",
+                        supports_streaming=True,
                     )
                 logger.info(f"Video an NOTIFY_USER {NOTIFY_USER_ID} gesendet")
             except Exception as notify_err:
