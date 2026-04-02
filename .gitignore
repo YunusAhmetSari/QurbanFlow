@@ -21,9 +21,10 @@ venv/
 *.swo
 
 # Media & Output (user-provided, not in Git)
-Vorlagen/*.mp4
-Vorlagen/*.mp3
-Vorlagen/*.wav
+# Vorlagen/ (Templates are now included in Git for easier deployment)
+# Vorlagen/*.mp4
+# Vorlagen/*.mp3
+# Vorlagen/*.wav
 Spender/
 
 # OS
