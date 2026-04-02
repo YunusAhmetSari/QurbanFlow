@@ -12,7 +12,7 @@ Konversations-basierter Flow:
 
 import logging
 
-from telegram.error import BadRequest
+
 
 from pathlib import Path
 
@@ -199,24 +199,12 @@ async def receive_slaughter_video(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text("❌ Bitte sende ein *Video*.", parse_mode="Markdown")
         return AWAITING_SLAUGHTER_VIDEO
 
-    try:
-        if video:
-            file = await video.get_file()
-            ext = ".mp4"
-        else:
-            file = await document.get_file()
-            ext = Path(document.file_name).suffix if document.file_name else ".mp4"
-    except BadRequest as e:
-        if "file is too big" in str(e).lower():
-            await update.message.reply_text(
-                "❌ *Das Video ist zu groß!*\n\n"
-                "Telegram erlaubt Bots nur Dateien bis *20 MB* herunterzuladen.\n\n"
-                "💡 *Tipp:* Bitte kürze oder komprimiere das Video und sende es erneut.",
-                parse_mode="Markdown",
-            )
-        else:
-            raise
-        return AWAITING_SLAUGHTER_VIDEO
+    if video:
+        file = await video.get_file()
+        ext = ".mp4"
+    else:
+        file = await document.get_file()
+        ext = Path(document.file_name).suffix if document.file_name else ".mp4"
 
     donor_path = Path(context.user_data["donor_path"])
     slaughter_path = donor_path / f"slaughter{ext}"
@@ -241,24 +229,12 @@ async def receive_distribution_video(update: Update, context: ContextTypes.DEFAU
         await update.message.reply_text("❌ Bitte sende ein *Video*.", parse_mode="Markdown")
         return AWAITING_DISTRIBUTION_VIDEO
 
-    try:
-        if video:
-            file = await video.get_file()
-            ext = ".mp4"
-        else:
-            file = await document.get_file()
-            ext = Path(document.file_name).suffix if document.file_name else ".mp4"
-    except BadRequest as e:
-        if "file is too big" in str(e).lower():
-            await update.message.reply_text(
-                "❌ *Das Video ist zu groß!*\n\n"
-                "Telegram erlaubt Bots nur Dateien bis *20 MB* herunterzuladen.\n\n"
-                "💡 *Tipp:* Bitte kürze oder komprimiere das Video und sende es erneut.",
-                parse_mode="Markdown",
-            )
-        else:
-            raise
-        return AWAITING_DISTRIBUTION_VIDEO
+    if video:
+        file = await video.get_file()
+        ext = ".mp4"
+    else:
+        file = await document.get_file()
+        ext = Path(document.file_name).suffix if document.file_name else ".mp4"
 
     donor_path = Path(context.user_data["donor_path"])
     distribution_path = donor_path / f"distribution{ext}"
@@ -354,15 +330,34 @@ async def confirm_assembly(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         file_size_mb = file_size / 1024 / 1024
         logger.info(f"Video erstellt: {result_path} ({file_size_mb:.1f} MB)")
 
-        # Dem Anfragenden bestätigen, dass das Video erstellt wurde
+        # Video an den Anfragenden senden
         await update.message.reply_text(
             f"✅ *Kurban-Video wurde erfolgreich erstellt!*\n\n"
-            f"👤 Spender: `{context.user_data['donor_name']}`\n\n"
-            f"Das Video wird in Kürze weitergeleitet. ✨",
+            f"👤 Spender: `{context.user_data['donor_name']}`\n"
+            f"📦 Größe: {file_size_mb:.1f} MB\n\n"
+            f"⏳ Video wird gesendet...",
             parse_mode="Markdown",
         )
 
-        # Benachrichtigung an den Weiterleitenden (NOTIFY_USER_ID) senden
+        # Video als Dokument senden (behält Original-Qualität)
+        try:
+            with open(str(result_path), "rb") as video_file:
+                await context.bot.send_document(
+                    chat_id=update.effective_chat.id,
+                    document=video_file,
+                    filename=result_path.name,
+                    caption=f"🎬 Kurban-Video: {context.user_data['donor_name']}",
+                )
+            logger.info(f"Video an User {update.effective_user.id} gesendet")
+        except Exception as send_err:
+            logger.error(f"Video-Versand an User fehlgeschlagen: {send_err}")
+            await update.message.reply_text(
+                f"⚠️ Video konnte nicht gesendet werden: `{send_err}`\n"
+                f"Das Video liegt aber unter: `{result_path}`",
+                parse_mode="Markdown",
+            )
+
+        # Video auch an den Weiterleitenden (NOTIFY_USER_ID) senden
         if NOTIFY_USER_ID:
             try:
                 await context.bot.send_message(
@@ -371,16 +366,21 @@ async def confirm_assembly(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                         f"🔔 *Neues Kurban-Video fertig!*\n\n"
                         f"👤 Spender: `{context.user_data['donor_name']}`\n"
                         f"📁 Ordner: `{normalized_name}_{counter}`\n"
-                        f"🎬 Datei: `{result_path.name}`\n"
-                        f"📦 Größe: {file_size_mb:.1f} MB\n\n"
-                        f"📂 Gespeichert unter:\n`{result_path}`\n\n"
-                        f"➡️ *Bitte leite das Video manuell weiter!*"
+                        f"📦 Größe: {file_size_mb:.1f} MB"
                     ),
                     parse_mode="Markdown",
                 )
-                logger.info(f"Benachrichtigung an User {NOTIFY_USER_ID} gesendet")
+                # Video auch an NOTIFY_USER senden
+                with open(str(result_path), "rb") as video_file:
+                    await context.bot.send_document(
+                        chat_id=NOTIFY_USER_ID,
+                        document=video_file,
+                        filename=result_path.name,
+                        caption=f"🎬 Kurban-Video: {context.user_data['donor_name']}",
+                    )
+                logger.info(f"Video an NOTIFY_USER {NOTIFY_USER_ID} gesendet")
             except Exception as notify_err:
-                logger.error(f"Benachrichtigung fehlgeschlagen: {notify_err}")
+                logger.error(f"Benachrichtigung/Versand an NOTIFY_USER fehlgeschlagen: {notify_err}")
 
     except Exception as e:
         logger.error(f"Video-Assembly fehlgeschlagen: {e}", exc_info=True)

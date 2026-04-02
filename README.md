@@ -65,11 +65,26 @@ Vorlagen/
 
 Eingehende Medien und fertige Videos werden in `Spender/` gespeichert.
 
-### 5. Bot starten
+### 5. Bot starten (lokal)
 
 ```bash
 python -m bot.telegram_bot
 ```
+
+### 5b. Bot starten (Cloud/Docker – empfohlen)
+
+Für Dateien bis **2 GB** und ohne laufenden PC:
+
+```bash
+# .env konfigurieren (TELEGRAM_API_ID + TELEGRAM_API_HASH von my.telegram.org)
+cp .env.example .env
+notepad .env
+
+# Mit Docker starten
+docker compose up -d --build
+```
+
+👉 Siehe [deploy.md](deploy.md) für die vollständige Deployment-Anleitung auf Hetzner Cloud.
 
 ### 6. Nutzen
 

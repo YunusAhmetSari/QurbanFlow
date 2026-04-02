@@ -38,6 +38,12 @@ ALLOWED_USER_IDS = [
 # User-ID, die benachrichtigt wird, wenn ein Video fertig ist (z.B. für manuelles Weiterleiten)
 _notify_id = os.getenv("NOTIFY_USER_ID", "").strip()
 NOTIFY_USER_ID = int(_notify_id) if _notify_id.isdigit() else None
+
+# ── Lokaler Telegram Bot API Server (für Dateien bis 2 GB) ─────────────────
+# Wenn gesetzt, verbindet sich der Bot mit dem lokalen API-Server statt api.telegram.org
+TELEGRAM_API_BASE_URL = os.getenv("TELEGRAM_API_BASE_URL", "").strip() or None
+TELEGRAM_API_BASE_FILE_URL = os.getenv("TELEGRAM_API_BASE_FILE_URL", "").strip() or None
+TELEGRAM_LOCAL_MODE = os.getenv("TELEGRAM_LOCAL_MODE", "").strip().lower() in ("true", "1", "yes")
 # ── Video-Einstellungen ────────────────────────────────────────────────────
 FLYER_STILL_DURATION = int(os.getenv("FLYER_STILL_DURATION", "5"))       # Sekunden
 ANIMAL_STILL_DURATION = int(os.getenv("ANIMAL_STILL_DURATION", "5"))     # Sekunden

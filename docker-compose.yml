@@ -1,0 +1,41 @@
+# ── QurbanFlow – Docker Compose ──────────────────────────────────────────────
+# Zwei Services:
+#   1. telegram-bot-api  – Lokaler Telegram Bot API Server (hebt Dateilimits auf)
+#   2. qurbanflow        – Der eigentliche Bot
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── Telegram Bot API Server (lokal, bis 2 GB Dateien) ────────────────────
+  telegram-bot-api:
+    image: aiogram/telegram-bot-api:latest
+    environment:
+      # Diese Werte erhältst du von https://my.telegram.org → API Development Tools
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH}
+      # Lokaler Modus: Dateien werden als lokale Pfade bereitgestellt
+      TELEGRAM_LOCAL: "true"
+    volumes:
+      - telegram-bot-api-data:/var/lib/telegram-bot-api
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  # ── QurbanFlow Bot ───────────────────────────────────────────────────────
+  qurbanflow:
+    build: .
+    env_file:
+      - .env
+    environment:
+      # Lokaler API-Server statt api.telegram.org
+      TELEGRAM_API_BASE_URL: http://telegram-bot-api:8081/bot
+      TELEGRAM_API_BASE_FILE_URL: http://telegram-bot-api:8081/file/bot
+      TELEGRAM_LOCAL_MODE: "true"
+    volumes:
+      - telegram-bot-api-data:/var/lib/telegram-bot-api
+      - ./Spender:/app/Spender
+    depends_on:
+      - telegram-bot-api
+    restart: unless-stopped
+
+volumes:
+  telegram-bot-api-data:

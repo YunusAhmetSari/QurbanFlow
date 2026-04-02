@@ -17,7 +17,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from telegram.ext import Application, CommandHandler
 
-from config import TELEGRAM_BOT_TOKEN
+from config import (
+    TELEGRAM_BOT_TOKEN,
+    TELEGRAM_API_BASE_URL,
+    TELEGRAM_API_BASE_FILE_URL,
+    TELEGRAM_LOCAL_MODE,
+)
 from bot.handlers import get_conversation_handler, help_command
 
 # ── Logging einrichten ──────────────────────────────────────────────────────
@@ -44,15 +49,26 @@ def main():
     logger.info("🕌 QurbanFlow Bot wird gestartet...")
 
     # Application erstellen
-    application = (
+    builder = (
         Application.builder()
         .token(TELEGRAM_BOT_TOKEN)
         .read_timeout(300)
         .write_timeout(300)
         .connect_timeout(300)
         .pool_timeout(300)
-        .build()
     )
+
+    # Lokalen Bot API Server verwenden (hebt Dateilimits auf: bis 2 GB)
+    if TELEGRAM_API_BASE_URL:
+        logger.info(f"🔗 Lokaler API-Server: {TELEGRAM_API_BASE_URL}")
+        builder = builder.base_url(TELEGRAM_API_BASE_URL)
+    if TELEGRAM_API_BASE_FILE_URL:
+        builder = builder.base_file_url(TELEGRAM_API_BASE_FILE_URL)
+    if TELEGRAM_LOCAL_MODE:
+        logger.info("📂 Lokaler Modus aktiv – Dateien werden als lokale Pfade bereitgestellt")
+        builder = builder.local_mode(True)
+
+    application = builder.build()
 
     # Handler registrieren
     application.add_handler(get_conversation_handler())
