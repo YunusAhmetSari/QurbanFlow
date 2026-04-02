@@ -269,20 +269,26 @@ def assemble_video(
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_file = str(output_path)
 
+        # Thumbnail erstellen (Frame bei 1 Sekunde - meistens der Flyer)
+        thumb_path = output_path.with_suffix(".jpg")
+        logger.info(f"Thumbnail wird generiert: {thumb_path}")
+        final.save_frame(str(thumb_path), t=1.0)
+
         logger.info(f"Rendering nach: {output_file}")
         final.write_videofile(
             output_file,
             fps=VIDEO_FPS,
             codec="libx264",
             audio_codec="aac",
-            bitrate="8000k",
+            bitrate="3000k",
             audio_bitrate="192k",
-            preset="medium",
+            preset="ultrafast",
+            threads=2,
             logger=None,
         )
 
         logger.info(f"=== Video fertig: {output_file} ===")
-        return output_path
+        return output_path, thumb_path, total_duration, TARGET_W, TARGET_H
 
     finally:
         # Alle Clips sauber schließen
