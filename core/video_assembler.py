@@ -109,6 +109,33 @@ def _make_still_clip(image_path: Path, duration: float) -> ImageClip:
     return _normalize_clip(clip)
 
 
+def _preprocess_video(input_path: Path) -> Path:
+    """
+    Konvertiert Smartphone-Videos (z.B. iPhone 10-bit HEVC) über das System-FFmpeg
+    in ein standardisiertes Format (H.264, yuv420p). Behebt MoviePy Lese-Fehler.
+    """
+    import subprocess
+    
+    if not input_path.exists() or input_path.stat().st_size == 0:
+        raise ValueError(f"Videodatei {input_path.name} ist leer oder fehlt.")
+        
+    output_path = input_path.with_stem(input_path.stem + "_fixed")
+    
+    logger.info(f"Führe Pre-Processing für {input_path.name} durch (Stabilität/H264)...")
+    try:
+        subprocess.run([
+            "ffmpeg", "-y", "-i", str(input_path),
+            "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-preset", "ultrafast",
+            "-crf", "23",
+            str(output_path)
+        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return output_path
+    except subprocess.CalledProcessError as e:
+        logger.error(f"FFmpeg Pre-Processing fehlgeschlagen für {input_path}: {e}")
+        # Wenn es fehlschlägt, versuchen wir es mit dem Original weiter
+        return input_path
+
 def assemble_video(
     flyer_image: Path,
     animal_image: Optional[Path],
@@ -177,7 +204,8 @@ def assemble_video(
 
         # ── Clip 4: Schlachtungsvideo ────────────────────────────────────────
         logger.info("Clip 4: Schlachtungsvideo")
-        clip4_raw = VideoFileClip(str(slaughter_video))
+        slaughter_fixed = _preprocess_video(slaughter_video)
+        clip4_raw = VideoFileClip(str(slaughter_fixed))
         clip4 = _normalize_clip(clip4_raw)
         clips_to_close.append(clip4_raw)
         clips_to_close.append(clip4)
@@ -185,7 +213,8 @@ def assemble_video(
         # ── Clip 5: Verteilungsvideo (Optional) ─────────────────────────────
         if distribution_video:
             logger.info("Clip 5: Verteilungsvideo")
-            clip5_raw = VideoFileClip(str(distribution_video))
+            dist_fixed = _preprocess_video(distribution_video)
+            clip5_raw = VideoFileClip(str(dist_fixed))
             clip5 = _normalize_clip(clip5_raw)
             clips_to_close.append(clip5_raw)
             clips_to_close.append(clip5)
