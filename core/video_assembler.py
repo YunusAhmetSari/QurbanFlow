@@ -272,7 +272,16 @@ def assemble_video(
         # Thumbnail erstellen (Frame bei 1 Sekunde - meistens der Flyer)
         thumb_path = output_path.with_suffix(".jpg")
         logger.info(f"Thumbnail wird generiert: {thumb_path}")
-        final.save_frame(str(thumb_path), t=1.0)
+        
+        from PIL import Image
+        import numpy as np
+        
+        frame = final.get_frame(1.0)
+        # Falls der Frame tranparent ist (RGBA), Alpha-Kanal entfernen (RGB)
+        if isinstance(frame, np.ndarray) and frame.ndim == 3 and frame.shape[2] == 4:
+            frame = frame[:, :, :3]
+            
+        Image.fromarray(frame).save(str(thumb_path), format="JPEG")
 
         logger.info(f"Rendering nach: {output_file}")
         final.write_videofile(
