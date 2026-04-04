@@ -15,6 +15,7 @@ from pathlib import Path
 # Projektverzeichnis zum Python-Pfad hinzufügen
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from telegram import BotCommand
 from telegram.ext import Application, CommandHandler
 
 from config import (
@@ -23,7 +24,7 @@ from config import (
     TELEGRAM_API_BASE_FILE_URL,
     TELEGRAM_LOCAL_MODE,
 )
-from bot.handlers import get_conversation_handler, help_command
+from bot.handlers import get_conversation_handler, help_command, cancel
 
 # ── Logging einrichten ──────────────────────────────────────────────────────
 logging.basicConfig(
@@ -35,6 +36,16 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("telegram").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
+
+
+async def post_init(application: Application):
+    """Setzt das Bot-Menü (Befehle unten links in Telegram)."""
+    commands = [
+        BotCommand("start", "Neues Kurban-Video erstellen"),
+        BotCommand("cancel", "Aktuellen Vorgang abbrechen"),
+        BotCommand("help", "Hilfe zum Ablauf anzeigen"),
+    ]
+    await application.bot.set_my_commands(commands)
 
 
 def main():
@@ -52,6 +63,7 @@ def main():
     builder = (
         Application.builder()
         .token(TELEGRAM_BOT_TOKEN)
+        .post_init(post_init)
         .read_timeout(300)
         .write_timeout(300)
         .connect_timeout(300)
@@ -72,6 +84,8 @@ def main():
 
     # Handler registrieren
     application.add_handler(get_conversation_handler())
+    # Globaler Cancel-Handler, falls der Nutzer gerade nicht in der Konversation ist
+    application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(CommandHandler("help", help_command))
 
     # Bot starten (Polling-Modus)
