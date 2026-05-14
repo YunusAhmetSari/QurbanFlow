@@ -58,7 +58,6 @@ AWAITING_DISTRIBUTION_VIDEO = 5
 CONFIRM_ASSEMBLY = 6
 
 # PDF-Flow
-PDF_START_NUMBER = 10
 PDF_ENTER_NAME = 11
 PDF_CHOOSE_TYPE = 12
 PDF_MORE_NAMES = 13
@@ -122,20 +121,19 @@ async def choose_automation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return AWAITING_FLYER
 
     elif text == "📄 Kurban-Liste (PDF)":
-        # PDF-Flow starten
+        # PDF-Flow starten (Startnummer wird automatisch berechnet)
         context.user_data["pdf_entries"] = []
-        current_counter = get_current_counter()
+        start_num = get_current_counter() + 1
+        context.user_data["pdf_start_number"] = start_num
 
         await update.message.reply_text(
             "📄 *Kurban-Liste erstellen*\n\n"
-            f"🔢 Aktueller Zählerstand: *{current_counter}*\n\n"
-            "Gib die *Startnummer* ein, oder sende *auto* für "
-            f"die nächste fortlaufende Nummer (*{current_counter + 1}*).\n\n"
-            "_Du kannst eine beliebige Nummer eingeben, falls du einen Fehler korrigieren musst._",
+            f"🔢 Startnummer: *{start_num}*\n\n"
+            "✏️ Gib jetzt den *1. Namen* ein:",
             parse_mode="Markdown",
             reply_markup=ReplyKeyboardRemove(),
         )
-        return PDF_START_NUMBER
+        return PDF_ENTER_NAME
 
     elif text == "📊 Statistik":
         stats_text = get_stats_text()
@@ -509,37 +507,6 @@ async def confirm_assembly(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 #  PDF-FLOW HANDLER
 # ══════════════════════════════════════════════════════════════════════════════
 
-async def pdf_start_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handler: Startnummer für PDF eingeben."""
-    text = update.message.text.strip().lower()
-
-    if text == "auto":
-        start_num = get_current_counter() + 1
-    else:
-        try:
-            start_num = int(text)
-            if start_num < 1:
-                await update.message.reply_text(
-                    "❌ Die Nummer muss mindestens 1 sein. Bitte erneut eingeben:"
-                )
-                return PDF_START_NUMBER
-        except ValueError:
-            await update.message.reply_text(
-                "❌ Bitte gib eine *Zahl* ein oder sende *auto*.",
-                parse_mode="Markdown",
-            )
-            return PDF_START_NUMBER
-
-    context.user_data["pdf_start_number"] = start_num
-    context.user_data["pdf_entries"] = []
-
-    await update.message.reply_text(
-        f"🔢 Startnummer: *{start_num}*\n\n"
-        f"✏️ Gib jetzt den *1. Namen* ein:",
-        parse_mode="Markdown",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-    return PDF_ENTER_NAME
 
 
 async def pdf_enter_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -654,13 +621,17 @@ async def _show_pdf_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     lines.append(f"\n📄 Datei: `Kurban_Liste_{start_num:03d}.pdf`")
 
+    buttons = [
+        ["✅ PDF erstellen"],
+        ["✏️ Eintrag bearbeiten"],
+        ["🗑️ Eintrag löschen"],
+    ]
+    if len(entries) < 7:
+        buttons.append(["➕ Eintrag hinzufügen"])
+    buttons.append(["❌ Abbrechen"])
+
     keyboard = ReplyKeyboardMarkup(
-        [
-            ["✅ PDF erstellen"],
-            ["✏️ Eintrag bearbeiten"],
-            ["🗑️ Eintrag löschen"],
-            ["❌ Abbrechen"],
-        ],
+        buttons,
         one_time_keyboard=True,
         resize_keyboard=True,
     )
@@ -737,6 +708,18 @@ async def pdf_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             reply_markup=keyboard,
         )
         return PDF_EDIT_CHOICE
+
+    elif text == "➕ Eintrag hinzufügen":
+        entries = context.user_data["pdf_entries"]
+        if len(entries) >= 7:
+            await update.message.reply_text("❌ Maximum von 7 Einträgen bereits erreicht.")
+            return await _show_pdf_summary(update, context)
+        await update.message.reply_text(
+            f"✏️ Gib den *{len(entries) + 1}. Namen* ein:",
+            parse_mode="Markdown",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return PDF_ENTER_NAME
 
     else:
         await update.message.reply_text("Bitte wähle eine der Optionen.")
@@ -999,9 +982,6 @@ def get_conversation_handler() -> ConversationHandler:
             ],
 
             # PDF-Flow
-            PDF_START_NUMBER: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, pdf_start_number),
-            ],
             PDF_ENTER_NAME: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, pdf_enter_name),
             ],

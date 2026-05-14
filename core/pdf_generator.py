@@ -184,20 +184,22 @@ def _draw_badge(
     center_x: int,
     center_y: int,
     font: ImageFont.FreeTypeFont,
+    fixed_w: int = 0,
+    fixed_h: int = 0,
 ) -> None:
     """
     Zeichnet einen dekorativen Badge (Rahmen mit geschweiften Klammern)
-    um den Kurban-Typ-Text, wie im Beispielbild.
+    um den Kurban-Typ-Text.
+
+    Wenn fixed_w/fixed_h angegeben, werden alle Badges gleich groß.
     """
     bbox = font.getbbox(text)
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
 
-    # Badge-Abmessungen
-    pad_x = 28
-    pad_y = 12
-    badge_w = text_w + pad_x * 2
-    badge_h = text_h + pad_y * 2
+    # Badge-Abmessungen (fest oder dynamisch)
+    badge_w = fixed_w if fixed_w else text_w + 56
+    badge_h = fixed_h if fixed_h else text_h + 24
 
     x1 = center_x - badge_w // 2
     y1 = center_y - badge_h // 2
@@ -214,12 +216,10 @@ def _draw_badge(
 
     # Dekorative Spitzen (geschweifte Klammern links/rechts)
     arrow_size = 10
-    # Links
     draw.polygon(
         [(x1 - arrow_size, center_y), (x1, center_y - arrow_size), (x1, center_y + arrow_size)],
         fill=(30, 30, 30),
     )
-    # Rechts
     draw.polygon(
         [(x2 + arrow_size, center_y), (x2, center_y - arrow_size), (x2, center_y + arrow_size)],
         fill=(30, 30, 30),
@@ -227,7 +227,7 @@ def _draw_badge(
 
     # Text zentriert im Badge
     text_x = center_x - text_w // 2
-    text_y = center_y - text_h // 2 - bbox[1]  # Korrektur für Font-Baseline
+    text_y = center_y - text_h // 2 - bbox[1]
     draw.text((text_x, text_y), text, fill=(30, 30, 30), font=font)
 
 
@@ -258,6 +258,46 @@ def _draw_separator(
         fill=line_color,
         outline=(160, 150, 120),
     )
+
+
+def _draw_name_entry(
+    draw: ImageDraw.Draw,
+    name: str,
+    name_x: int,
+    center_y: int,
+    font: ImageFont.FreeTypeFont,
+    font_size: int,
+) -> None:
+    """
+    Zeichnet einen Namen in ein oder zwei Zeilen.
+
+    Erste Zeile: Vorname(n), Zweite Zeile: Nachname.
+    Der letzte Namensteil ist immer der Nachname.
+    Schriftgröße ist für alle Einträge gleich (vorab berechnet).
+    """
+    text_color = (30, 30, 30)
+    name_upper = name.upper()
+    parts = name_upper.split()
+
+    if len(parts) <= 1:
+        # Einzelner Name → eine Zeile
+        draw.text(
+            (name_x, center_y - font_size // 2),
+            name_upper,
+            fill=text_color,
+            font=font,
+        )
+    else:
+        # Mehrteiliger Name → Zeile 1: Vorname(n), Zeile 2: Nachname
+        first_names = " ".join(parts[:-1])
+        last_name = parts[-1]
+
+        line_gap = 4
+        total_text_h = font_size * 2 + line_gap
+        top_y = center_y - total_text_h // 2
+
+        draw.text((name_x, top_y), first_names, fill=text_color, font=font)
+        draw.text((name_x, top_y + font_size + line_gap), last_name, fill=text_color, font=font)
 
 
 def generate_kurban_pdf(
@@ -306,35 +346,85 @@ def generate_kurban_pdf(
     img_w, img_h = img.size
     logger.info(f"Vorlage geladen: {img_w}x{img_h}")
 
-    # ── Schrift-Größen (relativ zur Bildgröße) ───────────────────────────
-    # Basierend auf dem Beispielbild mit 7 Zeilen
-    number_font_size = int(img_h * 0.04)    # Nummern
-    name_font_size = int(img_h * 0.038)     # Namen
-    badge_font_size = int(img_h * 0.028)    # Badge-Text
-
-    number_font = _get_font(number_font_size)
-    name_font = _get_font(name_font_size)
-    badge_font = _get_font(badge_font_size)
+    # ── Basis-Schriftgrößen (relativ zur Bildgröße) ─────────────────────
+    number_font_size = int(img_h * 0.04)
+    base_name_font_size = int(img_h * 0.038)
+    badge_font_size = int(img_h * 0.028)
 
     # ── Layout-Berechnung ────────────────────────────────────────────────
-    # Header endet ca. bei 32% der Bildhöhe (Flags + Titel)
     header_end_y = int(img_h * 0.32)
-    # Footer-Bereich beginnt ca. bei 96% der Bildhöhe
     footer_start_y = int(img_h * 0.96)
-
-    # Verfügbare Höhe für Einträge
     available_h = footer_start_y - header_end_y
-    # 7 Zeilen + 6 Trennlinien
     row_height = available_h // 7
 
-    # Horizontale Positionen
-    margin_left = int(img_w * 0.10)
-    margin_right = int(img_w * 0.90)
-    number_x = int(img_w * 0.12)       # Nummer links
-    name_x = int(img_w * 0.20)         # Name nach Nummer
-    badge_center_x = int(img_w * 0.76) # Badge rechts
+    # Feste Lücken
+    gap_num_name = int(img_w * 0.03)   # Lücke zwischen Nummer und Name
+    gap_name_badge = int(img_w * 0.03) # Lücke zwischen Name und Badge
 
-    text_color = (30, 30, 30)  # Fast-Schwarz
+    # Horizontale Positionen (aligned mit Vorlage)
+    # Nummer: links aligned mit "T" von TÜRKİYE (≈ 3%)
+    number_x = int(img_w * 0.06)
+    # Rechte Kante: aligned mit letztem "A" von TANZANYA (≈ 97%)
+    badge_right_edge = int(img_w * 0.95)
+    # Trennlinien-Bereich
+    margin_left = number_x
+    margin_right = badge_right_edge
+
+    text_color = (30, 30, 30)
+
+    # ── Einheitliche Badge-Größe berechnen (basierend auf breitstem Typ)
+    badge_font = _get_font(badge_font_size)
+    badge_pad_x = 28
+    badge_pad_y = 12
+    max_type_w = 0
+    max_type_h = 0
+    for typ in KURBAN_TYPES:
+        bbox = badge_font.getbbox(typ)
+        max_type_w = max(max_type_w, bbox[2] - bbox[0])
+        max_type_h = max(max_type_h, bbox[3] - bbox[1])
+    badge_w = max_type_w + badge_pad_x * 2
+    badge_h = max_type_h + badge_pad_y * 2
+    arrow_size = 10
+
+    # Badge-Zentrum: rechte Kante (Box + Pfeil) = badge_right_edge
+    badge_center_x = badge_right_edge - arrow_size - badge_w // 2
+
+    # ── Nummern-Breite berechnen ─────────────────────────────────────────
+    number_font = _get_font(number_font_size)
+    max_num_text = f"{start_number + len(entries) - 1}."
+    num_bbox = number_font.getbbox(max_num_text)
+    max_num_w = num_bbox[2] - num_bbox[0]
+
+    # Name beginnt nach Nummer + Lücke
+    name_x = number_x + max_num_w + gap_num_name
+
+    # Verfügbare Breite für Namen = bis Badge-Linke-Kante - Pfeil - Lücke
+    badge_left_edge = badge_center_x - badge_w // 2 - arrow_size
+    max_name_width = badge_left_edge - name_x - gap_name_badge
+
+    # ── Einheitliche Namensgröße berechnen (passt für längsten Namen) ───
+    name_font_size = base_name_font_size
+    name_font = _get_font(name_font_size)
+    while name_font_size > 14:
+        fits = True
+        for name, _ in entries:
+            parts = name.upper().split()
+            if len(parts) <= 1:
+                line = name.upper()
+            else:
+                first_line = " ".join(parts[:-1])
+                last_line = parts[-1]
+                line = first_line if len(first_line) >= len(last_line) else last_line
+            bbox = name_font.getbbox(line)
+            if (bbox[2] - bbox[0]) > max_name_width:
+                fits = False
+                break
+        if fits:
+            break
+        name_font_size -= 2
+        name_font = _get_font(name_font_size)
+
+    logger.info(f"Layout: Namensgröße={name_font_size}, Badge={badge_w}x{badge_h}")
 
     # ── Einträge zeichnen ────────────────────────────────────────────────
     for i in range(7):
@@ -354,17 +444,17 @@ def generate_kurban_pdf(
                 font=number_font,
             )
 
-            # Name zeichnen (UPPERCASE)
-            name_upper = name.upper()
-            draw.text(
-                (name_x, text_center_y - name_font_size // 2),
-                name_upper,
-                fill=text_color,
-                font=name_font,
+            # Name zeichnen (einheitliche Schriftgröße, ggf. zweizeilig)
+            _draw_name_entry(
+                draw, name, name_x, text_center_y,
+                name_font, name_font_size,
             )
 
-            # Badge mit Kurban-Typ
-            _draw_badge(draw, kurban_type, badge_center_x, text_center_y, badge_font)
+            # Badge mit Kurban-Typ (einheitliche Größe)
+            _draw_badge(
+                draw, kurban_type, badge_center_x, text_center_y,
+                badge_font, fixed_w=badge_w, fixed_h=badge_h,
+            )
 
         # Trennlinie (nur zwischen Einträgen, nicht nach dem letzten)
         if i < 6:
