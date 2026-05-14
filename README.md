@@ -47,12 +47,8 @@ Generiert professionelle Kurban-Listen im PDF-Format:
 # Repository klonen / in das Projektverzeichnis wechseln
 cd QurbanFlow
 
-# Virtual Environment erstellen
-python -m venv venv
-venv\Scripts\activate  # Windows
-
-# Abhängigkeiten installieren
-pip install -r requirements.txt
+# Virtual Environment & Abhängigkeiten mit uv (empfohlen)
+uv sync
 ```
 
 ### 3. Konfiguration
@@ -85,7 +81,7 @@ Generierte PDFs werden in `PDFs/` gespeichert.
 ### 5. Bot starten (lokal)
 
 ```bash
-python -m bot.telegram_bot
+uv run python -m bot.telegram_bot
 ```
 
 ### 5b. Bot starten (Cloud/Docker – empfohlen)

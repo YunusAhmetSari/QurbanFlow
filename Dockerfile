@@ -4,6 +4,8 @@
 
 FROM python:3.11-slim
 
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 # FFmpeg installieren (benötigt für moviepy/Video-Rendering)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg && \
@@ -13,8 +15,8 @@ RUN apt-get update && \
 WORKDIR /app
 
 # Dependencies zuerst (Docker-Caching)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project
 
 # Projektdateien kopieren
 COPY config.py .
@@ -24,6 +26,9 @@ COPY Vorlagen/ Vorlagen/
 
 # Spender-Verzeichnis erstellen (wird als Volume gemountet)
 RUN mkdir -p /app/Spender
+
+# Virtual Environment in PATH aufnehmen
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Bot starten
 CMD ["python", "-m", "bot.telegram_bot"]
