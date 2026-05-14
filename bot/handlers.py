@@ -13,12 +13,11 @@ A) Video-Flow:
 
 B) PDF-Listen-Flow:
    1. /start → Auswahl: Video oder PDF
-   2. Startnummer wählen oder 'auto'
-   3. Name eingeben (max. 7×)
-   4. Kurban-Typ wählen
-   5. Weitere Namen? Ja / Nein
-   6. Zusammenfassung + ggf. Korrektur
-   7. PDF generieren & senden
+   2. Name eingeben (max. 7×)
+   3. Kurban-Typ wählen
+   4. Weitere Namen? Ja / Nein
+   5. Zusammenfassung + ggf. Korrektur
+   6. PDF generieren & senden
 """
 
 import logging
@@ -37,7 +36,6 @@ from core.donor_manager import create_donor_folder
 from core.video_assembler import assemble_video
 from core.pdf_generator import (
     generate_kurban_pdf,
-    get_current_counter,
     get_stats_text,
 )
 
@@ -121,14 +119,11 @@ async def choose_automation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return AWAITING_FLYER
 
     elif text == "📄 Kurban-Liste (PDF)":
-        # PDF-Flow starten (Startnummer wird automatisch berechnet)
+        # PDF-Flow starten
         context.user_data["pdf_entries"] = []
-        start_num = get_current_counter() + 1
-        context.user_data["pdf_start_number"] = start_num
 
         await update.message.reply_text(
             "📄 *Kurban-Liste erstellen*\n\n"
-            f"🔢 Startnummer: *{start_num}*\n\n"
             "✏️ Gib jetzt den *1. Namen* ein:",
             parse_mode="Markdown",
             reply_markup=ReplyKeyboardRemove(),
@@ -557,12 +552,10 @@ async def pdf_choose_type(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     context.user_data.pop("pdf_current_name", None)
 
     entry_count = len(context.user_data["pdf_entries"])
-    start_num = context.user_data["pdf_start_number"]
-    current_num = start_num + entry_count - 1
 
     await update.message.reply_text(
         f"✅ Eintrag {entry_count} gespeichert:\n"
-        f"  {current_num}. *{name.upper()}* — {kurban_type}",
+        f"  {entry_count}. *{name.upper()}* — {kurban_type}",
         parse_mode="Markdown",
         reply_markup=ReplyKeyboardRemove(),
     )
@@ -612,14 +605,13 @@ async def pdf_more_names(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def _show_pdf_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Zeigt die PDF-Zusammenfassung mit Korrekturmöglichkeit."""
     entries = context.user_data["pdf_entries"]
-    start_num = context.user_data["pdf_start_number"]
 
     lines = ["📋 *Zusammenfassung der Kurban-Liste:*\n"]
     for i, (name, kurban_type) in enumerate(entries):
-        num = start_num + i
+        num = i + 1
         lines.append(f"  {num}. *{name.upper()}* — {kurban_type}")
 
-    lines.append(f"\n📄 Datei: `Kurban_Liste_{start_num:03d}.pdf`")
+    lines.append(f"\n📄 Datei: `Kurban_Liste.pdf`")
 
     buttons = [
         ["✅ PDF erstellen"],
@@ -660,11 +652,10 @@ async def pdf_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     elif text == "✏️ Eintrag bearbeiten":
         entries = context.user_data["pdf_entries"]
-        start_num = context.user_data["pdf_start_number"]
 
         buttons = []
         for i, (name, kurban_type) in enumerate(entries):
-            num = start_num + i
+            num = i + 1
             buttons.append([f"{num}. {name.upper()} – {kurban_type}"])
 
         buttons.append(["↩️ Zurück"])
@@ -682,7 +673,6 @@ async def pdf_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     elif text == "🗑️ Eintrag löschen":
         entries = context.user_data["pdf_entries"]
-        start_num = context.user_data["pdf_start_number"]
 
         if len(entries) <= 1:
             await update.message.reply_text(
@@ -693,7 +683,7 @@ async def pdf_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
         buttons = []
         for i, (name, kurban_type) in enumerate(entries):
-            num = start_num + i
+            num = i + 1
             buttons.append([f"🗑️ {num}. {name.upper()} – {kurban_type}"])
 
         buttons.append(["↩️ Zurück"])
@@ -734,13 +724,13 @@ async def pdf_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return await _show_pdf_summary(update, context)
 
     entries = context.user_data["pdf_entries"]
-    start_num = context.user_data["pdf_start_number"]
+
 
     # Löschen?
     if text.startswith("🗑️ "):
         # Index aus der Nummer extrahieren
         for i, (name, kurban_type) in enumerate(entries):
-            num = start_num + i
+            num = i + 1
             expected = f"🗑️ {num}. {name.upper()} – {kurban_type}"
             if text == expected:
                 removed = entries.pop(i)
@@ -752,7 +742,7 @@ async def pdf_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     # Bearbeiten
     for i, (name, kurban_type) in enumerate(entries):
-        num = start_num + i
+        num = i + 1
         expected = f"{num}. {name.upper()} – {kurban_type}"
         if text == expected:
             context.user_data["pdf_edit_index"] = i
@@ -837,7 +827,7 @@ async def pdf_edit_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def _generate_and_send_pdf(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Generiert das PDF und sendet es an den User."""
     entries = context.user_data["pdf_entries"]
-    start_num = context.user_data["pdf_start_number"]
+
 
     await update.message.reply_text(
         "⏳ *PDF wird erstellt...*",
@@ -848,11 +838,11 @@ async def _generate_and_send_pdf(update: Update, context: ContextTypes.DEFAULT_T
     try:
         pdf_path = generate_kurban_pdf(
             entries=entries,
-            start_number=start_num,
         )
 
         file_size = pdf_path.stat().st_size
         file_size_kb = file_size / 1024
+        start_num = 1
         end_num = start_num + len(entries) - 1
 
         # PDF an User senden
@@ -934,11 +924,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "5️⃣ Verteilungsvideo senden (oder /skip)\n"
         "6️⃣ Video wird automatisch erstellt! 🎬\n\n"
         "*📄 PDF-Listen-Flow:*\n"
-        "1️⃣ Startnummer wählen (oder auto)\n"
-        "2️⃣ Namen eingeben (max. 7)\n"
-        "3️⃣ Kurban-Typ wählen\n"
-        "4️⃣ Zusammenfassung prüfen/korrigieren\n"
-        "5️⃣ PDF wird automatisch erstellt! 📄",
+        "1️⃣ Namen eingeben (max. 7)\n"
+        "2️⃣ Kurban-Typ wählen\n"
+        "3️⃣ Zusammenfassung prüfen/korrigieren\n"
+        "4️⃣ PDF wird automatisch erstellt! 📄",
         parse_mode="Markdown",
     )
 

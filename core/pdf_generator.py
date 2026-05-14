@@ -5,7 +5,7 @@ Erstellt PDF-Zertifikate mit bis zu 7 Spendernamen auf der Kurban-Vorlage.
 Jeder Eintrag enthält: Laufende Nummer, Name (UPPERCASE), Kurban-Typ im Badge.
 
 Features:
-- Fortlaufende Nummerierung (persistent in JSON)
+- Nummerierung von 1 bis 7 pro PDF
 - Statistik-Tracking pro Kurban-Typ
 - Historien-Log aller generierten PDFs
 """
@@ -20,7 +20,6 @@ from PIL import Image, ImageDraw, ImageFont
 
 from config import (
     KURBAN_VORLAGE,
-    KURBAN_COUNTER_FILE,
     KURBAN_HISTORY_FILE,
     KURBAN_STATS_FILE,
     KURBAN_TYPES,
@@ -56,36 +55,8 @@ def _get_font(size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
-# ── Zähler-Management ────────────────────────────────────────────────────────
-
-def get_current_counter() -> int:
-    """Liest den aktuellen Zählerstand aus der JSON-Datei."""
-    if not KURBAN_COUNTER_FILE.exists():
-        return 0
-    try:
-        data = json.loads(KURBAN_COUNTER_FILE.read_text(encoding="utf-8"))
-        return data.get("counter", 0)
-    except (json.JSONDecodeError, KeyError):
-        return 0
-
-
-def set_counter(value: int) -> None:
-    """Setzt den Zähler auf einen bestimmten Wert."""
-    KURBAN_COUNTER_FILE.parent.mkdir(parents=True, exist_ok=True)
-    data = {"counter": value, "updated_at": datetime.now().isoformat()}
-    KURBAN_COUNTER_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    logger.info(f"Zähler gesetzt auf: {value}")
-
-
-def increment_counter(amount: int = 1) -> int:
-    """Erhöht den Zähler und gibt den neuen Wert zurück."""
-    current = get_current_counter()
-    new_value = current + amount
-    set_counter(new_value)
-    return new_value
-
-
 # ── Statistik-Tracking ───────────────────────────────────────────────────────
+
 
 def update_statistics(entries: List[Tuple[str, str]]) -> dict:
     """
@@ -139,7 +110,6 @@ def get_statistics() -> dict:
 
 def log_history(
     entries: List[Tuple[str, str]],
-    start_number: int,
     pdf_filename: str,
 ) -> None:
     """
@@ -147,10 +117,10 @@ def log_history(
 
     Args:
         entries: Liste von (name, kurban_type) Tupeln
-        start_number: Fortlaufende Startnummer
         pdf_filename: Name der PDF-Datei
     """
     history = []
+    start_number = 1
     if KURBAN_HISTORY_FILE.exists():
         try:
             history = json.loads(KURBAN_HISTORY_FILE.read_text(encoding="utf-8"))
@@ -302,7 +272,6 @@ def _draw_name_entry(
 
 def generate_kurban_pdf(
     entries: List[Tuple[str, str]],
-    start_number: int,
     output_path: Optional[Path] = None,
 ) -> Path:
     """
@@ -310,7 +279,6 @@ def generate_kurban_pdf(
 
     Args:
         entries: Liste von (name, kurban_type) Tupeln (max 7)
-        start_number: Fortlaufende Startnummer
         output_path: Pfad für die PDF-Datei (optional, wird automatisch generiert)
 
     Returns:
@@ -337,7 +305,8 @@ def generate_kurban_pdf(
                 f"Erlaubt: {', '.join(KURBAN_TYPES)}"
             )
 
-    logger.info(f"PDF-Generierung gestartet: {len(entries)} Einträge, Start-Nr. {start_number}")
+    start_number = 1
+    logger.info(f"PDF-Generierung gestartet: {len(entries)} Einträge")
 
     # ── Bild laden ───────────────────────────────────────────────────────
     img = Image.open(str(KURBAN_VORLAGE)).convert("RGB")
@@ -468,7 +437,8 @@ def generate_kurban_pdf(
     # ── PDF speichern ────────────────────────────────────────────────────
     if output_path is None:
         PDFS_DIR.mkdir(parents=True, exist_ok=True)
-        output_path = PDFS_DIR / f"Kurban_Liste_{start_number:03d}.pdf"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = PDFS_DIR / f"Kurban_Liste_{timestamp}.pdf"
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -476,11 +446,9 @@ def generate_kurban_pdf(
     img.save(str(output_path), "PDF", resolution=150.0)
     logger.info(f"PDF gespeichert: {output_path}")
 
-    # ── Zähler, Statistik und History aktualisieren ──────────────────────
-    end_number = start_number + len(entries) - 1
-    set_counter(end_number)
+    # ── Statistik und History aktualisieren ──────────────────────
     update_statistics(entries)
-    log_history(entries, start_number, output_path.name)
+    log_history(entries, output_path.name)
 
     return output_path
 
