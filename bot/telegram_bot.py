@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 async def post_init(application: Application):
     """Setzt das Bot-Menü (Befehle unten links in Telegram)."""
     commands = [
-        BotCommand("start", "Neues Kurban-Video erstellen"),
+        BotCommand("start", "Neues Kurban-Video oder PDF erstellen"),
         BotCommand("cancel", "Aktuellen Vorgang abbrechen"),
         BotCommand("help", "Hilfe zum Ablauf anzeigen"),
     ]

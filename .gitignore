@@ -26,6 +26,7 @@ venv/
 # Vorlagen/*.mp3
 # Vorlagen/*.wav
 Spender/
+PDFs/
 
 # OS
 Thumbs.db

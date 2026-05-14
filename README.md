@@ -1,13 +1,15 @@
-# 🕌 QurbanFlow – Automatische Kurban-Video-Produktion
+# 🕌 QurbanFlow – Automatische Kurban-Video- & PDF-Produktion
 
-Ein Telegram-Bot der automatisch Kurban-Videos zusammenschneidet, basierend auf einem festen Schema.
+Ein Telegram-Bot der automatisch Kurban-Videos zusammenschneidet und Kurban-Listen als PDF generiert.
 
 ## ✨ Features
 
-- 🤖 **Telegram-Bot** — Dein Vater schickt Medien direkt an den Bot
+- 🤖 **Telegram-Bot** — Medien direkt an den Bot senden
 - 📁 **Intelligente Ordnerstruktur** — Automatischer Zähler pro Spender (z.B. Max Mustermann 1, Max Mustermann 2)
 - 🎬 **Automatischer Videoschnitt** — Clips werden nach festem Schema zusammengebaut
-- 📤 **Direkter Versand** — Fertiges Video wird automatisch zurück an Telegram gesendet
+- 📄 **Kurban-Listen als PDF** — Bis zu 7 Spendernamen pro Seite mit fortlaufender Nummerierung
+- 📊 **Statistik-Tracking** — Übersicht über erstellte PDFs und Kurban-Typen
+- 📤 **Direkter Versand** — Fertiges Video/PDF wird automatisch zurück an Telegram gesendet
 
 ## 📐 Video-Schema
 
@@ -19,6 +21,17 @@ Ein Telegram-Bot der automatisch Kurban-Videos zusammenschneidet, basierend auf 
 | 4 | Gebet & Schlachtung | 🔊 Original |
 | 5 | Verteilung & Gebete (optional) | 🔊 Original |
 | 6 | Dankeschön-Clip (fest) | 🎵 Song B |
+
+## 📄 PDF-Listen
+
+Generiert professionelle Kurban-Listen im PDF-Format:
+
+- Bis zu **7 Einträge** pro Seite
+- **Fortlaufende Nummerierung** (persistent gespeichert)
+- Jeder Eintrag enthält: Nummer, Name (UPPERCASE), Kurban-Typ im Badge
+- Unterstützte Kurban-Typen: VACİP, ADAK, ŞÜKÜR, AKİKA, NAFİLE
+- **Bearbeiten & Löschen** von Einträgen vor der Generierung
+- **Statistik** über alle erstellten Listen
 
 ## 🚀 Schnellstart
 
@@ -58,12 +71,16 @@ Die Assets liegen bereits im `Vorlagen/`-Ordner:
 
 ```
 Vorlagen/
-├── Afrika.mp4         # Kurzes Afrika-Video
-├── Dankeschön.mp4     # Kurzes Dankeschön-Video
-└── SamiYusuf.mp4      # Hintergrundmusik (Video als Audio genutzt)
+├── Afrika.mp4             # Kurzes Afrika-Video
+├── Dankeschön.mp4         # Kurzes Dankeschön-Video
+├── SamiYusuf.mp4          # Hintergrundmusik (Video als Audio genutzt)
+├── Kurban_Vorlage.jpeg    # PDF-Vorlage für Kurban-Listen
+└── fonts/
+    └── Montserrat-Bold.ttf  # Schriftart für PDF-Texte
 ```
 
 Eingehende Medien und fertige Videos werden in `Spender/` gespeichert.
+Generierte PDFs werden in `PDFs/` gespeichert.
 
 ### 5. Bot starten (lokal)
 
@@ -89,13 +106,24 @@ docker compose up -d --build
 ### 6. Nutzen
 
 Dem Bot in Telegram schreiben:
-1. `/start` senden
+
+**🎬 Video erstellen:**
+1. `/start` senden → „Kurban-Video erstellen" wählen
 2. Flyer-Bild schicken
 3. Spendername eingeben
 4. Opfertier-Bild schicken (oder `/skip`)
 5. Schlachtungsvideo schicken
 6. Verteilungsvideo schicken (oder `/skip`)
 7. ✅ Fertiges Video wird automatisch zurückgesendet!
+
+**📄 PDF-Liste erstellen:**
+1. `/start` senden → „Kurban-Liste (PDF)" wählen
+2. Startnummer eingeben (oder `auto`)
+3. Namen eingeben (max. 7)
+4. Kurban-Typ wählen
+5. Weitere Namen hinzufügen oder fertigstellen
+6. Zusammenfassung prüfen/korrigieren
+7. ✅ Fertiges PDF wird automatisch zurückgesendet!
 
 ## ⚙️ Konfiguration
 
@@ -111,6 +139,8 @@ Alle Einstellungen in `.env`:
 | `VIDEO_WIDTH` | 1280 | Ausgabe-Breite (px) |
 | `VIDEO_HEIGHT` | 720 | Ausgabe-Höhe (px) |
 | `VIDEO_FPS` | 24 | Frames pro Sekunde |
+| `TARGET_DBFS` | -20.0 | Ziel-Lautstärke für Audio-Normalisierung |
+| `AUDIO_FADE_DURATION` | 1.0 | Audio Fade-Dauer in Sekunden |
 
 ## 📁 Projektstruktur
 
@@ -118,10 +148,13 @@ Alle Einstellungen in `.env`:
 QurbanFlow/
 ├── bot/                    # Telegram-Bot
 │   ├── telegram_bot.py     # Bot-Einstiegspunkt
-│   └── handlers.py         # Konversations-Handler
+│   └── handlers.py         # Konversations-Handler (Video + PDF)
 ├── core/                   # Kernlogik
 │   ├── donor_manager.py    # Spenderverwaltung
-│   └── video_assembler.py  # Video-Assembly
-├── Vorlagen/               # Feste Medien (Afrika, Danke, Song)
-└── Spender/                # Eingehende Medien + fertige Videos
+│   ├── video_assembler.py  # Video-Assembly
+│   ├── audio_processor.py  # Audio-Verarbeitung
+│   └── pdf_generator.py    # Kurban-Listen PDF-Generierung
+├── Vorlagen/               # Feste Medien (Afrika, Danke, Song, Vorlage, Fonts)
+├── Spender/                # Eingehende Medien + fertige Videos
+└── PDFs/                   # Generierte Kurban-Listen
 ```
