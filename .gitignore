@@ -31,3 +31,6 @@ PDFs/
 # OS
 Thumbs.db
 .DS_Store
+
+# Testing
+test_pdf.py
